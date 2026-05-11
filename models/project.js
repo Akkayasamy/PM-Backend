@@ -1,0 +1,82 @@
+const mongoose = require("mongoose");
+
+const projectSchema = new mongoose.Schema(
+  {
+    projectId: {
+      type: String,
+      unique: true,
+    },
+    name: {
+      type: String,
+    },
+    active: {
+      type: Boolean,
+      default: true,
+    },
+    budget: {
+      type: String,
+    },
+    budgetFunctionalHours: {
+      type: String,
+    },
+    budgetTechnicalHours: {
+      type: String,
+    },
+    startDate: {
+      type: String,
+    },
+    endDate: {
+      type: String,
+    },
+    isBillable: {
+      type: Boolean,
+      default: false,
+    },
+    clientId: {
+      type: String,
+    },
+    clientName: {
+      type: String,
+    },
+    clientProjectManager: {
+      type: String,
+    },
+    clientPMEmail: {
+      type: String,
+    },
+    clientSPOC1: {
+      type: String,
+    },
+    clientSPOC1Email: {
+      type: String,
+    },
+    clientSPOC2: {
+      type: String,
+      default: "",
+    },
+    clientSPOC2Email: {
+      type: String,
+      default: "",
+    },
+    projectGroup: {
+      type: String,
+    },
+    projectType: {
+      type: String,
+    },
+    description: {
+      type: String,
+    },
+    status: {
+      type: String,
+      enum: ["not_started", "in_progress", "completed", "on_hold", "cancelled"],
+      default: "not_started",
+    },
+    managerId: {
+      type: String,
+    },
+  },
+  { timestamps: true }
+);
+
+module.exports = mongoose.model("Project", projectSchema);
