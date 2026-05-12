@@ -130,7 +130,6 @@ exports.getTimesheetReport = catchAsyncErrors(async (req, res, next) => {
 
     // 1. Handle Team Lead / Manager Logic
     if (userId && userId !== 'all') {
-        // Find if this user is a lead or manager for any team
         const teams = await Team.find({
             $or: [
                 { leadId: userId },
@@ -139,27 +138,22 @@ exports.getTimesheetReport = catchAsyncErrors(async (req, res, next) => {
         });
 
         if (teams.length > 0) {
-            // If they are a lead, collect all member IDs from their teams
-            // We also include the lead's own ID in case they log time too
             const memberIds = teams.flatMap(team => team.members);
             targetUserIds = [...new Set([...memberIds, userId])];
         } else {
-            // If they aren't a lead, just filter for that specific user
             targetUserIds = [userId];
         }
 
-        // Convert string IDs to ObjectIds for the aggregation match
         matchQuery.userId = {
             $in: targetUserIds.map(id => new mongoose.Types.ObjectId(id))
         };
     }
 
-    // 2. Project Filter
+    // 2. Project & Date Filters
     if (projectId && projectId !== 'all') {
         matchQuery.projectId = new mongoose.Types.ObjectId(projectId);
     }
 
-    // 3. Date Filter
     if (fromDate && toDate) {
         matchQuery.date = {
             $gte: new Date(fromDate),
@@ -169,33 +163,53 @@ exports.getTimesheetReport = catchAsyncErrors(async (req, res, next) => {
 
     const report = await Timesheet.aggregate([
         { $match: matchQuery },
-        {
-            $lookup: {
-                from: "users",
-                let: { uId: "$userId" },
-                pipeline: [
-                    { $match: { $expr: { $eq: ["$_id", "$$uId"] } } },
-                    { $project: { name: 1, role: 1 } }
-                ],
-                as: "userInfo"
-            }
-        },
-        {
-            $lookup: {
-                from: "projects",
-                let: { pId: "$projectId" },
-                pipeline: [
-                    { $match: { $expr: { $eq: ["$_id", "$$pId"] } } },
-                    { $project: { name: 1, projectId: 1 } }
-                ],
-                as: "projectInfo"
-            }
-        },
+
+        // 3. CONVERT STRING IDs TO OBJECTIDs
+        // This is the "Full Fix": MongoDB cannot lookup if Types don't match (String vs ObjectId)
         {
             $addFields: {
-                userName: { $arrayElemAt: ["$userInfo.name", 0] },
-                userRole: { $arrayElemAt: ["$userInfo.role", 0] },
-                projectName: { $arrayElemAt: ["$projectInfo.name", 0] }
+                taskObjId: {
+                    $cond: [
+                        { $and: [{ $gt: ["$taskId", null] }, { $ne: ["$taskId", ""] }] },
+                        { $toObjectId: "$taskId" },
+                        null
+                    ]
+                },
+                subTaskObjId: {
+                    $cond: [
+                        { $and: [{ $gt: ["$subTaskId", null] }, { $ne: ["$subTaskId", ""] }] },
+                        { $toObjectId: "$subTaskId" },
+                        null
+                    ]
+                }
+            }
+        },
+
+        // 4. LOOKUPS
+        { $lookup: { from: "users", localField: "userId", foreignField: "_id", as: "u" } },
+        { $lookup: { from: "projects", localField: "projectId", foreignField: "_id", as: "p" } },
+        { $lookup: { from: "milestones", localField: "milestoneId", foreignField: "_id", as: "m" } },
+        { $lookup: { from: "tasks", localField: "taskObjId", foreignField: "_id", as: "t" } },
+        { $lookup: { from: "subtasks", localField: "subTaskObjId", foreignField: "_id", as: "st" } },
+
+        // 5. MAP FIELDS TO OUTPUT
+        {
+            $addFields: {
+                userName: { $arrayElemAt: ["$u.name", 0] },
+                userRole: { $arrayElemAt: ["$u.role", 0] },
+                projectName: { $arrayElemAt: ["$p.name", 0] },
+                projectCode: { $arrayElemAt: ["$p.projectId", 0] },
+                milestoneName: { $arrayElemAt: ["$m.name", 0] },
+                taskName: { $arrayElemAt: ["$t.title", 0] },
+                subTaskName: { $arrayElemAt: ["$st.title", 0] }
+            }
+        },
+
+        // 6. FINAL CLEANUP
+        {
+            $project: {
+                u: 0, p: 0, m: 0, t: 0, st: 0,
+                taskObjId: 0, subTaskObjId: 0
             }
         },
         { $sort: { date: -1, userName: 1 } }
