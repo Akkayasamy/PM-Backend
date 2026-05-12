@@ -18,6 +18,7 @@ const milestone = require("./routes/milestone");
 const resource = require("./routes/resource");
 const issue = require("./routes/issue");
 const sprint = require("./routes/sprint");
+const timesheet = require("./routes/timesheetRoutes");
 
 app.use(bodyParser.urlencoded({ limit: "10mb", extended: true }));
 app.use(cookieParser());
@@ -45,5 +46,6 @@ app.use("/api/v1", milestone);
 app.use("/api/v1", resource);
 app.use("/api/v1", issue);
 app.use("/api/v1", sprint);
+app.use("/api/v1", timesheet);
 
 module.exports = app;
