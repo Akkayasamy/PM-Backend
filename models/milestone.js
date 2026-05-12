@@ -25,4 +25,4 @@ const milestoneSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model("Milestone", milestoneSchema);
+module.exports = mongoose.models.Milestone || mongoose.model("Milestone", milestoneSchema);

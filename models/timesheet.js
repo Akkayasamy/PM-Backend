@@ -18,4 +18,4 @@ const timesheetSchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
-module.exports = mongoose.model("Timesheet", timesheetSchema);
+module.exports = mongoose.models.Timesheet || mongoose.model("Timesheet", timesheetSchema);

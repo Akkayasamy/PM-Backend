@@ -14,6 +14,7 @@ const {
   updateProject,
   getProjectByUser,
   removeProject,
+  getAllProjectsTree
 } = require("../controllers/projectController");
 const { isAuthenticatedUser, authorizeRoles } = require("../middlewares/auth");
 
@@ -25,5 +26,6 @@ router.route("/project").put(updateProject);
 router.route("/project/:id").get(getProject);
 //router.route("/project").put(updateProjectById);
 router.route("/project/:id").delete(removeProject);
+router.route("/projects/tree").get(getAllProjectsTree);
 
 module.exports = router;
