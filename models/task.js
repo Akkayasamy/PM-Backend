@@ -15,9 +15,17 @@ const taskSchema = new mongoose.Schema(
       type: String,
     },
     projectId: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Project",
       required: true,
     },
+    
+    milestoneId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Milestone",
+      default: null,
+    },
+    
     startDate: {
       type: String,
     },
@@ -75,12 +83,9 @@ const taskSchema = new mongoose.Schema(
     },
     createdBy: {
       type: String,
-      // required: true,
     },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
 module.exports = mongoose.model("Task", taskSchema);

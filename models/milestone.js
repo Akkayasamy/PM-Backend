@@ -13,16 +13,16 @@ const milestoneSchema = new mongoose.Schema(
       type: String,
     },
     projectId: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Project", // Links to Project model
+      required: true,
     },
     status: {
       type: String,
       default: "planned",
     },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
 module.exports = mongoose.model("Milestone", milestoneSchema);
