@@ -19,7 +19,7 @@ const {
 
 const { isAuthenticatedUser, authorizeRoles } = require("../middlewares/auth");
 const { authenticateToken } = require("./../middlewares/authToken");
-const { getProjectReport, getUserPerformanceReport } = require('./../controllers/reportController');
+const { getProjectReport, getUserPerformanceReport, getTimesheetReport } = require('./../controllers/reportController');
 
 router.route("/register").post(registerUser);
 router.route("/login").post(loginUser);
@@ -47,7 +47,9 @@ router
   .put(isAuthenticatedUser, updateUser)
   .delete(isAuthenticatedUser, deleteUser);
 
-router.route("/report/project/:id").get(isAuthenticatedUser,getProjectReport);
+router.route("/report/project/:id").get(isAuthenticatedUser, getProjectReport);
+
+router.route("/report/timesheets").get(isAuthenticatedUser, getTimesheetReport);
 
 // router.route("/report/user/:id").get(isAuthenticatedUser, getUserPerformanceReport);
 
