@@ -220,14 +220,9 @@ exports.getAllProjectsTree = catchAsyncErrors(async (req, res, next) => {
 
                 const consultantId = task?.technicalConsultant?.toString() || task?.functionalConsultant.toString();
 
-                const userDetails = consultantId
-                  ? await User.findById(consultantId).lean()
-                  : null;
+                const userDetails = consultantId ? await User.findById(consultantId).lean() : null;
 
-                // 4. Fetch Subtasks for the Task
-                const subtasks = await Subtask.find({
-                  parentTaskId: task?.taskId
-                }).lean();
+                const subtasks = await Subtask.find({ parentTaskId: task?.taskId }).lean();
 
                 // 5. Fetch Timesheets for each Subtask
                 const subtasksWithData = await Promise.all(
@@ -235,15 +230,11 @@ exports.getAllProjectsTree = catchAsyncErrors(async (req, res, next) => {
                     const subtaskTs = await Timesheet.find({
                       subTaskId: st._id?.toString() || "",
                     }).lean();
-                    // const userData = await User.findById({
-                    //   _id: st?.createdBy || '',
-                    // }).lean();
+
 
                     const creatorId = st?.createdBy?.toString();
 
-                    const userData = creatorId
-                      ? await User.findById(creatorId).lean()
-                      : null;
+                    const userData = creatorId ? await User.findById(creatorId).lean() : null;
 
                     return { ...st, timesheets: subtaskTs, userData: userData };
                   })
