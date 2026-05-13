@@ -9,6 +9,7 @@ const Milestone = require("../models/Milestone");
 const Task = require("../models/Task");
 const Subtask = require("../models/Subtask");
 const Timesheet = require("../models/Timesheet");
+const User = require("../models/user");
 
 const s3 = new AWS.S3({
   region: process.env.AWS_REGION,
@@ -216,6 +217,10 @@ exports.getAllProjectsTree = catchAsyncErrors(async (req, res, next) => {
                 subTaskId: ""
               }).lean();
 
+              const userDetails = await User.findById({
+                _id: task.technicalConsultant.toString(),
+              }).lean();
+
               // 4. Fetch Subtasks for the Task
               const subtasks = await Subtask.find({
                 parentTaskId: task.taskId
@@ -227,7 +232,11 @@ exports.getAllProjectsTree = catchAsyncErrors(async (req, res, next) => {
                   const subtaskTs = await Timesheet.find({
                     subTaskId: st._id.toString(),
                   }).lean();
-                  return { ...st, timesheets: subtaskTs };
+                  const userData = await User.findById({
+                    _id: st.createdBy,
+                  }).lean();
+
+                  return { ...st, timesheets: subtaskTs, userData: userData };
                 })
               );
 
@@ -250,7 +259,8 @@ exports.getAllProjectsTree = catchAsyncErrors(async (req, res, next) => {
               return {
                 ...task,
                 subtasks: subtaskTree,
-                timesheets: taskTimesheets
+                timesheets: taskTimesheets,
+                userDetails: userDetails
               };
             })
           );
