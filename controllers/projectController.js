@@ -194,91 +194,105 @@ exports.getAllProjectsTree = catchAsyncErrors(async (req, res, next) => {
     .sort({ createdAt: -1 })
     .lean();
 
-  const results = await Promise.all(
-    projects.map(async (project) => {
-      const pIdStr = project._id.toString();
+  try {
+    const results = await Promise.all(
+      projects.map(async (project) => {
+        const pIdStr = project._id.toString();
 
-      // 1. Fetch Milestones linked to Project
-      const milestones = await Milestone.find({ projectId: pIdStr }).lean();
+        // 1. Fetch Milestones linked to Project
+        const milestones = await Milestone.find({ projectId: pIdStr }).lean();
 
-      const milestonesWithTasks = await Promise.all(
-        milestones.map(async (ms) => {
-          // 2. Fetch Tasks linked to this Milestone
-          const tasks = await Task.find({
-            milestoneId: ms._id.toString(),
-            status: { $ne: 'Deleted' }
-          }).lean();
+        const milestonesWithTasks = await Promise.all(
+          milestones.map(async (ms) => {
+            // 2. Fetch Tasks linked to this Milestone
+            const tasks = await Task.find({
+              milestoneId: ms._id.toString(),
+              status: { $ne: 'Deleted' }
+            }).lean();
 
-          const tasksWithDetails = await Promise.all(
-            tasks.map(async (task) => {
-              // 3. Fetch Timesheets for the main Task
-              const taskTimesheets = await Timesheet.find({
-                taskId: task._id.toString(),
-                subTaskId: ""
-              }).lean();
+            const tasksWithDetails = await Promise.all(
+              tasks.map(async (task) => {
+                // 3. Fetch Timesheets for the main Task
+                const taskTimesheets = await Timesheet.find({
+                  taskId: task._id?.toString() || "",
+                  subTaskId: ""
+                }).lean();
 
-              const userDetails = await User.findById({
-                _id: task.technicalConsultant.toString(),
-              }).lean();
+                const consultantId = task?.technicalConsultant?.toString() || task?.functionalConsultant.toString();
 
-              // 4. Fetch Subtasks for the Task
-              const subtasks = await Subtask.find({
-                parentTaskId: task.taskId
-              }).lean();
+                const userDetails = consultantId
+                  ? await User.findById(consultantId).lean()
+                  : null;
 
-              // 5. Fetch Timesheets for each Subtask
-              const subtasksWithData = await Promise.all(
-                subtasks.map(async (st) => {
-                  const subtaskTs = await Timesheet.find({
-                    subTaskId: st._id.toString(),
-                  }).lean();
-                  const userData = await User.findById({
-                    _id: st.createdBy,
-                  }).lean();
+                // 4. Fetch Subtasks for the Task
+                const subtasks = await Subtask.find({
+                  parentTaskId: task?.taskId
+                }).lean();
 
-                  return { ...st, timesheets: subtaskTs, userData: userData };
-                })
-              );
+                // 5. Fetch Timesheets for each Subtask
+                const subtasksWithData = await Promise.all(
+                  subtasks.map(async (st) => {
+                    const subtaskTs = await Timesheet.find({
+                      subTaskId: st._id?.toString() || "",
+                    }).lean();
+                    // const userData = await User.findById({
+                    //   _id: st?.createdBy || '',
+                    // }).lean();
 
-              // 6. Build Subtask Recursive Tree
-              const subTaskMap = {};
-              subtasksWithData.forEach(st => {
-                st.children = [];
-                subTaskMap[st.subTaskId] = st;
-              });
+                    const creatorId = st?.createdBy?.toString();
 
-              const subtaskTree = [];
-              subtasksWithData.forEach(st => {
-                if (st.parentSubTaskId && subTaskMap[st.parentSubTaskId]) {
-                  subTaskMap[st.parentSubTaskId].children.push(st);
-                } else {
-                  subtaskTree.push(st);
-                }
-              });
+                    const userData = creatorId
+                      ? await User.findById(creatorId).lean()
+                      : null;
 
-              return {
-                ...task,
-                subtasks: subtaskTree,
-                timesheets: taskTimesheets,
-                userDetails: userDetails
-              };
-            })
-          );
+                    return { ...st, timesheets: subtaskTs, userData: userData };
+                  })
+                );
 
-          return { ...ms, tasks: tasksWithDetails };
-        })
-      );
+                // 6. Build Subtask Recursive Tree
+                const subTaskMap = {};
+                subtasksWithData.forEach(st => {
+                  st.children = [];
+                  subTaskMap[st.subTaskId] = st;
+                });
 
-      return {
-        ...project,
-        milestones: milestonesWithTasks
-      };
-    })
-  );
+                const subtaskTree = [];
+                subtasksWithData.forEach(st => {
+                  if (st.parentSubTaskId && subTaskMap[st.parentSubTaskId]) {
+                    subTaskMap[st.parentSubTaskId].children.push(st);
+                  } else {
+                    subtaskTree.push(st);
+                  }
+                });
 
-  res.status(200).json({
-    success: true,
-    totalCount,
-    results,
-  });
+                return {
+                  ...task,
+                  subtasks: subtaskTree,
+                  timesheets: taskTimesheets,
+                  userDetails: userDetails
+                };
+              })
+            );
+
+            return { ...ms, tasks: tasksWithDetails };
+          })
+        );
+
+        return {
+          ...project,
+          milestones: milestonesWithTasks
+        };
+      })
+    );
+
+    res.status(200).json({
+      success: true,
+      totalCount,
+      results,
+    });
+
+  } catch (error) {
+    console.log("Error:", error)
+  }
+
 });
