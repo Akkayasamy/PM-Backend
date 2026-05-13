@@ -171,13 +171,11 @@ exports.removeProject = catchAsyncErrors(async (req, res, next) => {
   });
 });
 
-
 exports.getAllProjectsTree = catchAsyncErrors(async (req, res, next) => {
   const { search, currentPage = 1 } = req.query;
   const limit = 10;
   const skip = (Number(currentPage) - 1) * limit;
 
-  // 1. Build Project Search Query
   let queryCond = {};
   if (search) {
     queryCond = {
@@ -188,7 +186,6 @@ exports.getAllProjectsTree = catchAsyncErrors(async (req, res, next) => {
     };
   }
 
-  // 2. Fetch Projects
   const totalCount = await Project.countDocuments(queryCond);
   const projects = await Project.find(queryCond)
     .limit(limit)
@@ -198,71 +195,57 @@ exports.getAllProjectsTree = catchAsyncErrors(async (req, res, next) => {
 
   const results = await Promise.all(
     projects.map(async (project) => {
-      // Use the hex string version of the _id for string-based comparisons
-      const pIdHexStr = project._id.toString();
+      const pIdStr = project._id.toString();
 
-      // 3. Fetch Milestones
-      // We check for the string ID directly to avoid the ObjectId CastError
-      const milestones = await Milestone.find({
-        $or: [
-          { projectId: pIdHexStr },            // Matches '6a01a835...' string
-          // { projectId: project.projectId }     // Matches 'PRJ-NJT-001' string
-        ]
-      }).lean();
+      // 1. Fetch Milestones linked to Project
+      const milestones = await Milestone.find({ projectId: pIdStr }).lean();
 
       const milestonesWithTasks = await Promise.all(
         milestones.map(async (ms) => {
-          // 4. Fetch Tasks 
-          // Tasks are linked to the Project by the hex string in your DB
+          // 2. Fetch Tasks linked to this Milestone
           const tasks = await Task.find({
-            projectId: pIdHexStr,
+            milestoneId: ms._id.toString(),
             status: { $ne: 'Deleted' }
           }).lean();
 
           const tasksWithDetails = await Promise.all(
             tasks.map(async (task) => {
-              // 5. Fetch Subtasks using the custom taskId string (e.g., 'TASK-NJT-331')
-              const allSubtasks = await Subtask.find({
+              // 3. Fetch Timesheets for the main Task
+              const taskTimesheets = await Timesheet.find({
+                taskId: task._id.toString(),
+                subTaskId: ""
+              }).lean();
+
+              // 4. Fetch Subtasks for the Task
+              const subtasks = await Subtask.find({
                 parentTaskId: task.taskId
               }).lean();
 
-              // 6. Fetch Timesheets for each Subtask
-              const subtasksWithTimesheets = await Promise.all(
-                allSubtasks.map(async (st) => {
-                  const ts = await Timesheet.find({
-                    $or: [
-                      { subTaskId: st.subTaskId },      // String ID
-                      { subTaskId: st._id.toString() }  // Hex String
-                    ]
+              // 5. Fetch Timesheets for each Subtask
+              const subtasksWithData = await Promise.all(
+                subtasks.map(async (st) => {
+                  const subtaskTs = await Timesheet.find({
+                    subTaskId: st._id.toString(),
                   }).lean();
-                  return { ...st, timesheets: ts };
+                  return { ...st, timesheets: subtaskTs };
                 })
               );
 
-              // 7. Build Subtask Recursive Tree
+              // 6. Build Subtask Recursive Tree
               const subTaskMap = {};
-              subtasksWithTimesheets.forEach(st => {
+              subtasksWithData.forEach(st => {
                 st.children = [];
                 subTaskMap[st.subTaskId] = st;
               });
 
               const subtaskTree = [];
-              subtasksWithTimesheets.forEach(st => {
+              subtasksWithData.forEach(st => {
                 if (st.parentSubTaskId && subTaskMap[st.parentSubTaskId]) {
                   subTaskMap[st.parentSubTaskId].children.push(st);
                 } else {
                   subtaskTree.push(st);
                 }
               });
-
-              // 8. Fetch Timesheets for the main Task
-              const taskTimesheets = await Timesheet.find({
-                $or: [
-                  { taskId: task._id },          // ObjectId
-                  { taskId: task.taskId },       // Custom ID String
-                  { taskId: task._id.toString() } // Hex String
-                ]
-              }).lean();
 
               return {
                 ...task,

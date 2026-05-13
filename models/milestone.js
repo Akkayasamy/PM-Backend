@@ -9,12 +9,14 @@ const milestoneSchema = new mongoose.Schema(
     description: {
       type: String,
     },
+    startDate: {
+      type: String,
+    },
     dueDate: {
       type: String,
     },
     projectId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Project", // Links to Project model
+      type: String,
       required: true,
     },
     status: {

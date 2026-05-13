@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "SET NODE_ENV = DEVELOPMENT& nodemon server.js"
+    "dev": "SET NODE_ENV=DEVELOPMENT && nodemon server.js"
   },
   "author": "",
   "license": "ISC",
@@ -34,6 +34,6 @@
     "validator": "^13.7.0"
   },
   "devDependencies": {
-    "nodemon": "^2.0.19"
+    "nodemon": "^3.1.14"
   }
 }
