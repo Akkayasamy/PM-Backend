@@ -61,9 +61,12 @@ const projectSchema = new mongoose.Schema(
     projectGroup: {
       type: String,
     },
+
     projectType: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "ProjectType",
     },
+
     description: {
       type: String,
     },
@@ -72,6 +75,7 @@ const projectSchema = new mongoose.Schema(
       enum: ["not_started", "in_progress", "completed", "on_hold", "cancelled"],
       default: "not_started",
     },
+    
     managerId: {
       type: String,
     },
@@ -79,4 +83,5 @@ const projectSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model("Project", projectSchema);
+// Use conditional export to prevent model overwrite errors during hot-reloads
+module.exports = mongoose.models.Project || mongoose.model("Project", projectSchema);

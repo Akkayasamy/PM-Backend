@@ -10,6 +10,7 @@ const Task = require("../models/Task");
 const Subtask = require("../models/Subtask");
 const Timesheet = require("../models/Timesheet");
 const User = require("../models/user");
+const ProjectType = require("../models/ProjectType");
 
 const s3 = new AWS.S3({
   region: process.env.AWS_REGION,
@@ -68,7 +69,8 @@ exports.newProject = catchAsyncErrors(async (req, res, next) => {
 });
 
 exports.getProjectAll = catchAsyncErrors(async (req, res, next) => {
-  const project = await Project.find();
+
+  const project = await Project.find().populate("projectType", "typeName projectTypeId");
 
   res.status(200).json({
     success: true,
@@ -285,5 +287,14 @@ exports.getAllProjectsTree = catchAsyncErrors(async (req, res, next) => {
   } catch (error) {
     console.log("Error:", error)
   }
+});
 
+exports.getProjectTypeAll = catchAsyncErrors(async (req, res, next) => {
+  const projectTypes = await ProjectType.find();
+
+  res.status(200).json({
+    success: true,
+    count: projectTypes.length,
+    projectTypes,
+  });
 });
