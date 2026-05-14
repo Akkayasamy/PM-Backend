@@ -84,6 +84,10 @@ const projectSchema = new mongoose.Schema(
     managerId: {
       type: String,
     },
+
+    teamleadId: {
+      type: String,
+    },
   },
   { timestamps: true }
 );
