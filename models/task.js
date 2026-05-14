@@ -19,19 +19,27 @@ const taskSchema = new mongoose.Schema(
       ref: "Project",
       required: true,
     },
-    
+
     milestoneId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Milestone",
       default: null,
     },
-    
+
     startDate: {
       type: String,
     },
     endDate: {
       type: String,
     },
+
+    planDate: {
+      type: String,
+    },
+    actualDate: {
+      type: String,
+    },
+
     status: {
       type: String,
       enum: ["Open", "WIP", "QC", "Under Review", "Closed", "Re Open", "Hold"],
@@ -80,6 +88,9 @@ const taskSchema = new mongoose.Schema(
     active: {
       type: Boolean,
       default: true,
+    },
+    taskremarks: {
+      type: String,
     },
     createdBy: {
       type: String,
