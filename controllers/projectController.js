@@ -79,7 +79,7 @@ exports.getProjectAll = catchAsyncErrors(async (req, res, next) => {
 });
 
 exports.getProject = catchAsyncErrors(async (req, res, next) => {
-  const project = await Project.findById(req.params.id);
+  const project = await Project.findById(req.params.id).populate("projectType", "typeName projectTypeId");
 
   res.status(200).json({
     success: true,

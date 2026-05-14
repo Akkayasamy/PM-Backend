@@ -28,6 +28,11 @@ const projectSchema = new mongoose.Schema(
     endDate: {
       type: String,
     },
+
+    actualDate: {
+      type: String,
+    },
+
     isBillable: {
       type: Boolean,
       default: false,
@@ -75,7 +80,7 @@ const projectSchema = new mongoose.Schema(
       enum: ["not_started", "in_progress", "completed", "on_hold", "cancelled"],
       default: "not_started",
     },
-    
+
     managerId: {
       type: String,
     },
