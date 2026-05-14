@@ -26,6 +26,6 @@ router.route("/project").put(updateProject);
 router.route("/project/:id").get(getProject);
 //router.route("/project").put(updateProjectById);
 router.route("/project/:id").delete(removeProject);
-router.route("/projects/tree").get(getAllProjectsTree);
+router.route("/projects/tree").get(isAuthenticatedUser,getAllProjectsTree);
 
 module.exports = router;
