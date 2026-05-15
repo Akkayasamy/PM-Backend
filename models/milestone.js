@@ -15,6 +15,9 @@ const milestoneSchema = new mongoose.Schema(
     dueDate: {
       type: String,
     },
+    completedDate: {
+      type: String,
+    },
     projectId: {
       type: String,
       required: true,
