@@ -184,7 +184,7 @@ exports.getAllProjectsTree = catchAsyncErrors(async (req, res, next) => {
     queryCond = {
       $or: [
         { name: { $regex: search, $options: "i" } },
-        { projectId: { $regex: search, $options: "i" } }
+        { projectId: { $regex: search, $options: "i" } },
       ],
     };
   }
@@ -196,99 +196,119 @@ exports.getAllProjectsTree = catchAsyncErrors(async (req, res, next) => {
     .sort({ createdAt: -1 })
     .lean();
 
-  try {
-    const results = await Promise.all(
-      projects.map(async (project) => {
-        const pIdStr = project._id.toString();
+  const results = await Promise.all(
+    projects.map(async (project) => {
+      const pIdStr = project._id.toString();
 
-        // 1. Fetch Milestones linked to Project
-        const milestones = await Milestone.find({ projectId: pIdStr }).lean();
+      const [managerDetails, teamleadDetails] = await Promise.all([
+        project.managerId
+          ? User.findById(project.managerId).select("name email").lean()
+          : null,
+        project.teamleadId
+          ? User.findById(project.teamleadId).select("name email").lean()
+          : null,
+      ]);
 
-        const milestonesWithTasks = await Promise.all(
-          milestones.map(async (ms) => {
-            // 2. Fetch Tasks linked to this Milestone
-            const tasks = await Task.find({
-              milestoneId: ms._id.toString(),
-              status: { $ne: 'Deleted' }
-            }).lean();
+      const managerName = managerDetails?.name || null;
+      const teamleadName = teamleadDetails?.name || null;
 
-            const tasksWithDetails = await Promise.all(
-              tasks.map(async (task) => {
-                // 3. Fetch Timesheets for the main Task
-                const taskTimesheets = await Timesheet.find({
-                  taskId: task._id?.toString() || "",
-                  subTaskId: ""
-                }).lean();
+      // 1. Fetch Milestones linked to Project
+      const milestones = await Milestone.find({ projectId: pIdStr }).lean();
 
-                const consultantId = task?.technicalConsultant?.toString() || task?.functionalConsultant.toString();
+      const milestonesWithTasks = await Promise.all(
+        milestones.map(async (ms) => {
+          // 2. Fetch Tasks linked to this Milestone
+          const tasks = await Task.find({
+            milestoneId: ms._id.toString(),
+            status: { $ne: "Deleted" },
+          }).lean();
 
-                const userDetails = consultantId ? await User.findById(consultantId).lean() : null;
+          const tasksWithDetails = await Promise.all(
+            tasks.map(async (task) => {
+              // 3. Fetch Timesheets for the main Task
+              const taskTimesheets = await Timesheet.find({
+                taskId: task._id?.toString() || "",
+                subTaskId: "",
+              }).lean();
 
-                const subtasks = await Subtask.find({ parentTaskId: task?.taskId }).lean();
+              const consultantId =
+                task?.technicalConsultant?.toString() ||
+                task?.functionalConsultant?.toString() ||
+                null;
 
-                // 5. Fetch Timesheets for each Subtask
-                const subtasksWithData = await Promise.all(
-                  subtasks.map(async (st) => {
-                    const subtaskTs = await Timesheet.find({
-                      subTaskId: st._id?.toString() || "",
-                    }).lean();
+              const userDetails = consultantId
+                ? await User.findById(consultantId).lean()
+                : null;
 
+              // 4. Fetch Subtasks
+              const subtasks = await Subtask.find({
+                parentTaskId: task?.taskId,
+              }).lean();
 
-                    const creatorId = st?.createdBy?.toString();
+              // 5. Fetch Timesheets for each Subtask
+              const subtasksWithData = await Promise.all(
+                subtasks.map(async (st) => {
+                  const subtaskTs = await Timesheet.find({
+                    subTaskId: st._id?.toString() || "",
+                  }).lean();
 
-                    const userData = creatorId ? await User.findById(creatorId).lean() : null;
+                  const creatorId = st?.createdBy?.toString();
+                  const userData = creatorId
+                    ? await User.findById(creatorId).lean()
+                    : null;
 
-                    return { ...st, timesheets: subtaskTs, userData: userData };
-                  })
-                );
+                  return { ...st, timesheets: subtaskTs, userData };
+                })
+              );
 
-                // 6. Build Subtask Recursive Tree
-                const subTaskMap = {};
-                subtasksWithData.forEach(st => {
-                  st.children = [];
-                  subTaskMap[st.subTaskId] = st;
-                });
+              // 6. Build Subtask Recursive Tree
+              const subTaskMap = {};
+              subtasksWithData.forEach((st) => {
+                st.children = [];
+                subTaskMap[st.subTaskId] = st;
+              });
 
-                const subtaskTree = [];
-                subtasksWithData.forEach(st => {
-                  if (st.parentSubTaskId && subTaskMap[st.parentSubTaskId]) {
-                    subTaskMap[st.parentSubTaskId].children.push(st);
-                  } else {
-                    subtaskTree.push(st);
-                  }
-                });
+              const subtaskTree = [];
+              subtasksWithData.forEach((st) => {
+                if (st.parentSubTaskId && subTaskMap[st.parentSubTaskId]) {
+                  subTaskMap[st.parentSubTaskId].children.push(st);
+                } else {
+                  subtaskTree.push(st);
+                }
+              });
 
-                return {
-                  ...task,
-                  subtasks: subtaskTree,
-                  timesheets: taskTimesheets,
-                  userDetails: userDetails
-                };
-              })
-            );
+              return {
+                ...task,
+                subtasks: subtaskTree,
+                timesheets: taskTimesheets,
+                userDetails,
+              };
+            })
+          );
 
-            return { ...ms, tasks: tasksWithDetails };
-          })
-        );
+          // Append managerName and teamleadName without touching existing milestone fields
+          return {
+            ...ms,
+            tasks: tasksWithDetails,
+            managerName,
+            teamleadName,
+          };
+        })
+      );
 
-        return {
-          ...project,
-          milestones: milestonesWithTasks
-        };
-      })
-    );
+      return {
+        ...project,
+        milestones: milestonesWithTasks,
+      };
+    })
+  );
 
-    res.status(200).json({
-      success: true,
-      totalCount,
-      results,
-    });
-
-  } catch (error) {
-    console.log("Error:", error)
-  }
+  return res.status(200).json({
+    success: true,
+    totalCount,
+    results,
+  });
 });
-
 exports.getProjectTypeAll = catchAsyncErrors(async (req, res, next) => {
   const projectTypes = await ProjectType.find();
 
