@@ -16,7 +16,7 @@ const userSchema = new mongoose.Schema(
       unique: true,
       validate: [validator.isEmail, "Please enter valid email address"],
     },
-    phone: {
+    phoneNumber: {
       type: String,
       //   required: [true, "Please enter your phone"],
       //  unique: true,
@@ -31,11 +31,27 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "team_member",
     },
+    country: {
+      type: String,
+      default: null,
+    },
+    designation: {
+      type: String,
+      default: null,
+    },
+    monthlySalary: {
+      type: Number,
+      default: null,
+    },
+    perHourBudget: {
+      type: Number,
+      default: null,
+    },
 
     isInactive: {
       type: Boolean,
+      default: false,
     },
-
     userImg: {
       type: String,
     },
@@ -55,7 +71,6 @@ userSchema.pre("save", async function (next) {
   if (!this.isModified("password")) {
     next();
   }
-
   this.password = await bcrypt.hash(this.password, 10);
 });
 
@@ -73,16 +88,13 @@ userSchema.methods.getJwtToken = function () {
 
 // Generate password reset token
 userSchema.methods.getResetPasswordToken = function () {
-  // Generate token
   const resetToken = crypto.randomBytes(20).toString("hex");
 
-  // Hash and set to resetPasswordToken
   this.resetPasswordToken = crypto
     .createHash("sha256")
     .update(resetToken)
     .digest("hex");
 
-  // Set token expire time
   this.resetPasswordExpire = Date.now() + 30 * 60 * 1000;
 
   return resetToken;

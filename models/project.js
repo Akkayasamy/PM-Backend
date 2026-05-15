@@ -88,6 +88,11 @@ const projectSchema = new mongoose.Schema(
     teamleadId: {
       type: String,
     },
+
+    resources: {
+      type: [String],
+      default: [],
+    },
   },
   { timestamps: true }
 );
