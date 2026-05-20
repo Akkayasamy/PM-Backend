@@ -132,29 +132,43 @@ exports.getTask = catchAsyncErrors(async (req, res, next) => {
 exports.getTasksByUser = catchAsyncErrors(async (req, res, next) => {
   const user = await User.findById(req.params.id);
 
+  let tasks;
+
   if (
     user.role === "admin" ||
     user.role === "project_manager" ||
     user.role === "Manager"
   ) {
-    const tasks = await Task.find();
-    res.status(200).json({
-      success: true,
-      tasks,
-    });
+
+    tasks = await Task.find()
+      .populate({
+        path: "projectId",
+        populate: [
+          { path: "managerId", model: "User", select: "name email" },
+          { path: "teamleadId", model: "User", select: "name email" }
+        ]
+      });
   } else {
-    const tasks = await Task.find({
+
+    tasks = await Task.find({
       $or: [
         { functionalConsultant: user._id },
         { technicalConsultant: user._id },
       ],
-    });
-
-    res.status(200).json({
-      success: true,
-      tasks,
-    });
+    })
+      .populate({
+        path: "projectId",
+        populate: [
+          { path: "managerId", model: "User", select: "name email" },
+          { path: "teamleadId", model: "User", select: "name email" }
+        ]
+      });
   }
+
+  res.status(200).json({
+    success: true,
+    tasks,
+  });
 });
 
 exports.getTasksByProject = catchAsyncErrors(async (req, res, next) => {
